@@ -8,11 +8,28 @@
    ═══════════════════════════════════════════════════════════════════════════════ */
 window.CLEARSKY_CONFIG = {
 
-  /* ── Firebase ──────────────────────────────────────────────────────────────
-     TODO: paste the Firebase web-app credentials for this deployment. Nobody
-     can sign in until these are real. Reuse the clearsky-portal project if
-     iQGen is a tenant inside it; create a separate project if their data must
-     live in its own Firebase instance.                                       */
+  /* ═════════════════════════════════════════════════════════════════════════
+     >>  FIREBASE — THE ONLY THING LEFT TO FILL IN  <<
+     ─────────────────────────────────────────────────────────────────────────
+     Until these are real, sign-in fails with:
+         Firebase: Error (auth/api-key-not-valid.-please-pass-a-valid-api-key.)
+
+     Get them either way:
+
+       A) Copy from a working sibling deployment (same Firebase project, so
+          iQGen becomes another tenant in clearsky-portal — almost certainly
+          what you want):
+
+            curl -s https://demo.clearskyomega.com/config.js | sed -n '/firebase:/,/}/p'
+
+       B) Firebase Console -> Project settings -> General -> Your apps
+          -> Web app -> SDK setup and configuration
+
+     Then: Authentication -> Settings -> Authorized domains
+           -> add  iqgen.clearskyomega.com
+           (skip this and you trade the API-key error for
+            auth/unauthorized-domain on the very next attempt)
+     ═════════════════════════════════════════════════════════════════════════ */
   firebase: {
     apiKey:            'REPLACE_ME',
     authDomain:        'REPLACE_ME.firebaseapp.com',
@@ -65,3 +82,55 @@ window.CLEARSKY_CONFIG = {
   platformName: 'ClearSky-OMEGA',
   supportEmail: 'support@iqgen.energy'
 };
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SETUP GUARD
+   Catches the two things that break a fresh deployment and says so in plain
+   language, instead of leaving a raw Firebase SDK string on the sign-in card.
+   Safe to delete once this deployment is live.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+(function (cfg) {
+  var problems = [];
+
+  var fb = cfg.firebase || {};
+  var placeholder = false;
+  for (var k in fb) {
+    if (fb.hasOwnProperty(k) && String(fb[k]).indexOf('REPLACE_ME') >= 0) placeholder = true;
+  }
+  if (placeholder) {
+    problems.push('/config.js still has placeholder Firebase credentials. '
+      + 'Copy the firebase block from a working deployment, or from '
+      + 'Firebase Console \u2192 Project settings \u2192 Your apps \u2192 Web app.');
+  }
+
+  /* Firebase Auth only permits an insecure origin on localhost. */
+  var host = location.hostname;
+  var localish = (host === 'localhost' || host === '127.0.0.1' || host === '[::1]');
+  if (location.protocol === 'http:' && !localish) {
+    problems.push('This page is served over HTTP. Firebase Auth requires HTTPS '
+      + 'outside localhost \u2014 Google sign-in will fail and passwords are sent '
+      + 'in cleartext. Install a certificate for ' + host + '.');
+  }
+
+  if (!problems.length) return;
+
+  if (window.console && console.error) {
+    for (var i = 0; i < problems.length; i++) {
+      console.error('[ClearSky-OMEGA setup] ' + problems[i]);
+    }
+  }
+
+  /* Replace the raw SDK error on the auth card with something actionable. */
+  function show() {
+    var el = document.getElementById('auth-err');
+    if (!el) { return setTimeout(show, 200); }
+    el.textContent = 'Deployment not finished: ' + problems.join(' \u00B7 ');
+    el.style.display = 'block';
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', show);
+  } else {
+    show();
+  }
+})(window.CLEARSKY_CONFIG);
