@@ -65,20 +65,10 @@ window.CLEARSKY_CONFIG = {
     /* ── WHAT THIS ACCOUNT CAN USE ────────────────────────────────────────
        Everything else in the catalog still renders, badged "Upgrade". */
     unlockedTools: [
-      'editor',        // BESS Site Map            — confirmed in the catalog
-      'financing',     // Financing Partners       — confirmed ("finance marketplace")
-      'grid_atlas'     // Grid Atlas               — KEY UNVERIFIED, see below
+      'editor',        // BESS Site Map        (design,          tier 1)
+      'gridatlas',     // Grid Atlas           (interconnection, tier 0)
+      'financing'      // Financing Partners   (marketplace,     tier 0)
     ],
-
-    /* Grid Atlas is not in the omega-tools.js seed catalog. The live catalog is
-       hydrated from the Firestore `tools` collection, which has moved ahead of
-       the seed — the marketplace shows categories ("Interconnection & Grid",
-       "Operations & Asset Management") that the seed file doesn't define, and
-       Grid Atlas is presumably one of those newer entries.
-
-       Get the real key: open the marketplace and run  OMEGAKeys()  in the
-       console, then replace 'grid_atlas' above. Until then that tool stays
-       badged "Upgrade" — a visible failure, not a silent one. */
 
     /* Branding for customer-facing exports (proposals, PDFs). */
     exportBrand: {

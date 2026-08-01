@@ -101,9 +101,9 @@ Unlocked for iQGen:
 
 | Key | Tool | Status |
 |---|---|---|
-| `editor` | BESS Site Map | confirmed · also pinned via `requiredTools` |
-| `financing` | Financing Partners | confirmed |
-| `grid_atlas` | Grid Atlas | **key unverified** |
+| `editor` | BESS Site Map | design, tier 1 · also pinned via `requiredTools` |
+| `gridatlas` | Grid Atlas | interconnection, tier 0 |
+| `financing` | Financing Partners | marketplace, tier 0 |
 
 ### How the gate actually works
 
@@ -122,13 +122,13 @@ comes only from the two explicit lists.
 
 Set `tierLevel: 3` on conversion to open everything.
 
-### Grid Atlas
+### Catalog source
 
-Not in the `omega-tools.js` seed catalog. `hydrate()` replaces the seed with the
-Firestore `tools` collection when it's non-empty, and that collection has moved
-ahead — the live marketplace shows "Interconnection & Grid" and "Operations &
-Asset Management" categories the seed doesn't define. Run `OMEGAKeys()` in the
-browser console to get the real key and replace the placeholder in `config.js`.
+Keys were read from `clearskyenergy/clearsky-portal/main/omega-tools.js`, which
+carries 33 tools. Note the portal hydrates its catalog from the Firestore
+`tools` collection when that's non-empty, and the live marketplace has been
+showing 15 — so Firestore is behind this seed. Running "Import / Update
+Applications" in the admin console republishes the seed to Firestore.
 
 ---
 
