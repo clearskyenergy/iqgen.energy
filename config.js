@@ -8,35 +8,22 @@
    ═══════════════════════════════════════════════════════════════════════════════ */
 window.CLEARSKY_CONFIG = {
 
-  /* ═════════════════════════════════════════════════════════════════════════
-     >>  FIREBASE — THE ONLY THING LEFT TO FILL IN  <<
-     ─────────────────────────────────────────────────────────────────────────
-     Until these are real, sign-in fails with:
-         Firebase: Error (auth/api-key-not-valid.-please-pass-a-valid-api-key.)
+  /* ── Firebase ──────────────────────────────────────────────────────────────
+     Project: clearsky-portal — the same project the demo and other tenants
+     use, so iQGen is a tenant inside it rather than a separate instance. The
+     Firestore rules already scope by email domain via userOrg(), which
+     resolves @iqgen.energy to the orgId below with no rules change needed.
 
-     Get them either way:
-
-       A) Copy from a working sibling deployment (same Firebase project, so
-          iQGen becomes another tenant in clearsky-portal — almost certainly
-          what you want):
-
-            curl -s https://demo.clearskyomega.com/config.js | sed -n '/firebase:/,/}/p'
-
-       B) Firebase Console -> Project settings -> General -> Your apps
-          -> Web app -> SDK setup and configuration
-
-     Then: Authentication -> Settings -> Authorized domains
-           -> add  iqgen.clearskyomega.com
-           (skip this and you trade the API-key error for
-            auth/unauthorized-domain on the very next attempt)
-     ═════════════════════════════════════════════════════════════════════════ */
+     These are web-app credentials, public by design (they ship in every page
+     load). The security boundary is the Firestore rules, not this key.       */
   firebase: {
-    apiKey:            'REPLACE_ME',
-    authDomain:        'REPLACE_ME.firebaseapp.com',
-    projectId:         'REPLACE_ME',
-    storageBucket:     'REPLACE_ME.appspot.com',
-    messagingSenderId: 'REPLACE_ME',
-    appId:             'REPLACE_ME'
+    apiKey:            'AIzaSyABoM1lgOYUnd5ZadaoTMhYmA9cHa8Tyo0',
+    authDomain:        'clearsky-portal.firebaseapp.com',
+    projectId:         'clearsky-portal',
+    storageBucket:     'clearsky-portal.firebasestorage.app',
+    messagingSenderId: '742134484347',
+    appId:             '1:742134484347:web:ab0f95fd221536158481de',
+    measurementId:     'G-8D92GNW555'
   },
 
   /* ── The tenant ───────────────────────────────────────────────────────────── */
@@ -115,22 +102,51 @@ window.CLEARSKY_CONFIG = {
 
   if (!problems.length) return;
 
+  var MSG = 'Deployment not finished: ' + problems.join(' \u00B7 ');
+
   if (window.console && console.error) {
     for (var i = 0; i < problems.length; i++) {
       console.error('[ClearSky-OMEGA setup] ' + problems[i]);
     }
   }
 
-  /* Replace the raw SDK error on the auth card with something actionable. */
-  function show() {
+  /* Don't just paint the message — hold it. Firebase's own error fires later,
+     when the user clicks Create account, and would otherwise overwrite this
+     with the raw SDK string that sent you looking in the wrong place. */
+  function apply() {
     var el = document.getElementById('auth-err');
-    if (!el) { return setTimeout(show, 200); }
-    el.textContent = 'Deployment not finished: ' + problems.join(' \u00B7 ');
+    if (!el) { return setTimeout(apply, 200); }
+
+    el.textContent = MSG;
     el.style.display = 'block';
+
+    /* Any later auth error re-shows the setup message instead. */
+    if (typeof window.showAuthErr === 'function' && !window.showAuthErr.__omegaSetup) {
+      var wrapped = function () {
+        el.textContent = MSG;
+        el.style.display = 'block';
+      };
+      wrapped.__omegaSetup = true;
+      window.showAuthErr = wrapped;
+    }
+
+    /* Sign-in cannot succeed in this state, so make that visible rather than
+       letting it fail confusingly on click. */
+    var ids = ['email-auth-btn', 'google-signin-btn'];
+    for (var j = 0; j < ids.length; j++) {
+      var b = document.getElementById(ids[j]);
+      if (b) {
+        b.disabled = true;
+        b.style.opacity = '0.5';
+        b.style.cursor = 'not-allowed';
+        b.title = MSG;
+      }
+    }
   }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', show);
+    document.addEventListener('DOMContentLoaded', apply);
   } else {
-    show();
+    apply();
   }
 })(window.CLEARSKY_CONFIG);
