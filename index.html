@@ -4215,7 +4215,7 @@ function showUpgradeModal(toolName){
       '</div>'+
       '<div style="font-size:19px;font-weight:700;color:#08384F;margin-bottom:8px">Unlock '+esc2(toolName)+'</div>'+
       '<div style="font-size:13px;color:#5A7180;line-height:1.55;margin-bottom:22px">Your OMEGA demo workspace currently includes the <b>Site Designer &amp; permit engine</b>. '+esc2(toolName)+' is part of the full ClearSky-OMEGA suite \u2014 financial modeling, investor underwriting, procurement, and more.</div>'+
-      '<a href="mailto:'+encodeURIComponent(((window.CLEARSKY_CONFIG||{}).supportEmail)||'dev@clearsky-usa.com')+'?subject=Unlock%20'+encodeURIComponent(toolName)+'" style="display:block;background:linear-gradient(135deg,#006F9A,#00A9A4);color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:13px;border-radius:10px;margin-bottom:10px">Request access</a>'+
+      '<a href="mailto:'+encodeURIComponent(OmegaBrand.upgradeEmail())+'?subject=Unlock%20'+encodeURIComponent(toolName)+'" style="display:block;background:linear-gradient(135deg,#006F9A,#00A9A4);color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:13px;border-radius:10px;margin-bottom:10px">Request access</a>'+
       '<button onclick="document.getElementById(\'upgrade-modal\').remove()" style="background:none;border:none;color:#5A7180;font-size:13px;cursor:pointer;font-family:inherit">Maybe later</button>'+
     '</div>';
   m.addEventListener('click', function(e){ if(e.target===m) m.remove(); });
@@ -4299,11 +4299,24 @@ function renderPortalApps(ws){
   });
 }
 
-function _qualifying(){
-  var all = OMEGATools.all(), out = [];
-  for (var i=0;i<all.length;i++){ if (OMEGATools.isUnlocked(all[i], _PORTAL_WS)) out.push(all[i]); }
-  return out;
-}
+/* Return the WHOLE catalog. applyToolLocks() below adds the Upgrade badge to
+   anything this tenant can't use — filtering here meant locked tools were
+   dropped before that ever ran, so the overlay never appeared for them. */
+function _qualifying(){ return OMEGATools.all(); }
+
+/* Dev aid: print every catalog key so unlockedTools can be filled exactly.
+   Run  OMEGAKeys()  in the console. */
+window.OMEGAKeys = function(){
+  var all = OMEGATools.all(), rows = [];
+  for (var i=0;i<all.length;i++){
+    var unlocked = (typeof OMEGATools.isUnlocked === 'function')
+      ? OMEGATools.isUnlocked(all[i], _PORTAL_WS) : true;
+    rows.push({ key: all[i].key, name: all[i].name,
+                category: all[i].category, locked: !unlocked });
+  }
+  if (console.table) console.table(rows); else console.log(rows);
+  return rows;
+};
 function _pinned(k){ return _PINNED.indexOf(k) >= 0; }
 /* Tolerant of an older catalog that predates isRequired: fall back to the
    workspace.requiredTools list directly so tiles still render. */

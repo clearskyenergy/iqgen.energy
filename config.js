@@ -32,14 +32,26 @@ window.CLEARSKY_CONFIG = {
     orgId:         'iqgen.energy',        // hard tenant lock — scopes ALL Firestore reads
     clientName:    'iQGen Technologies',
     allowedDomain: 'iqgen.energy',        // only @iqgen.energy may sign in
-    logo:          '/images/qgen-logo.png',
+    logo:          '/qgen-logo.png',
 
     /* ── TRIAL ────────────────────────────────────────────────────────────────
        tierLevel 1 keeps the tier gate ACTIVE, so only the tools listed in
        unlockedTools stay live and everything else shows the Upgrade overlay.
        (tierLevel >= 3 or accountTier 'Enterprise' would unlock everything.) */
     accountTier:   'Trial',
-    tierLevel:     1,
+    /* The gate in omega-tools.js is:
+           unlocked = requiredTools.has(key)
+                   || unlockedTools.has(key)
+                   || tierLevel >= (tool.tier ?? 1)
+
+       Tool tiers run ALL=0, STANDARD=1, DELUXE=2, ENTERPRISE=3. So tierLevel 1
+       would have unlocked 10 of 16 tools by tier alone — every tier-0 and
+       tier-1 tool — not just the three asked for.
+
+       -1 sits below TIER.ALL, so no tool passes on tier and access comes
+       ONLY from the explicit lists below. The catalog still renders in full;
+       everything unlisted shows an "Upgrade" badge. */
+    tierLevel:     -1,
 
     trial: {
       startsAt:     '2026-08-03',   // Monday Aug 3, 2026 — local midnight
@@ -47,14 +59,30 @@ window.CLEARSKY_CONFIG = {
       lockOnExpiry: false           // see README before flipping this to true
     },
 
-    /* Tools live during the trial. Anything omitted renders locked with an
-       upgrade prompt. Catalog keys currently available: editor, investment, sales. */
+    /* Pinned, non-removable dashboard tiles. */
     requiredTools: ['editor'],
-    unlockedTools: ['editor', 'sales'],
+
+    /* ── WHAT THIS ACCOUNT CAN USE ────────────────────────────────────────
+       Everything else in the catalog still renders, badged "Upgrade". */
+    unlockedTools: [
+      'editor',        // BESS Site Map            — confirmed in the catalog
+      'financing',     // Financing Partners       — confirmed ("finance marketplace")
+      'grid_atlas'     // Grid Atlas               — KEY UNVERIFIED, see below
+    ],
+
+    /* Grid Atlas is not in the omega-tools.js seed catalog. The live catalog is
+       hydrated from the Firestore `tools` collection, which has moved ahead of
+       the seed — the marketplace shows categories ("Interconnection & Grid",
+       "Operations & Asset Management") that the seed file doesn't define, and
+       Grid Atlas is presumably one of those newer entries.
+
+       Get the real key: open the marketplace and run  OMEGAKeys()  in the
+       console, then replace 'grid_atlas' above. Until then that tool stays
+       badged "Upgrade" — a visible failure, not a silent one. */
 
     /* Branding for customer-facing exports (proposals, PDFs). */
     exportBrand: {
-      logo:              '/images/qgen-logo.png',
+      logo:              '/qgen-logo.png',
       name:              'iQGen Technologies',
       poweredBy:         'Powered by ClearSky-OMEGA',
       platformCopyright: '© 2026 ClearSky Energy Solutions LLC · ClearSky-OMEGA platform'
@@ -67,7 +95,16 @@ window.CLEARSKY_CONFIG = {
   adminDomains: ['csebuilders.com', 'clearsky-usa.com'],
 
   platformName: 'ClearSky-OMEGA',
-  supportEmail: 'support@iqgen.energy'
+
+  /* iQGen's own support desk — shown to their users for help with the
+     product itself. */
+  supportEmail: 'support@iqgen.energy',
+
+  /* ClearSky's address. Everything commercial routes here: the trial banner's
+     Upgrade link, locked-tool "Upgrade to unlock" buttons, and the expired-
+     trial message. Kept separate from supportEmail so upgrade requests reach
+     you rather than the customer's own help desk. */
+  upgradeEmail: 'dev@clearsky-usa.com'
 };
 
 

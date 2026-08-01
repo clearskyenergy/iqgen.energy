@@ -226,6 +226,13 @@
 
   function platformName() { return cfg().platformName || 'ClearSky-OMEGA'; }
 
+  /* Two different addresses, deliberately:
+       supportEmail  — the TENANT's own support desk, shown to their users.
+       upgradeEmail  — ClearSky's address. Upgrading, unlocking tools and
+                       converting a trial are all conversations with the
+                       vendor, not with the tenant's own support desk. */
+  function upgradeEmail() { return cfg().upgradeEmail || 'dev@clearsky-usa.com'; }
+
   /* ── Trial accounts ──────────────────────────────────────────────────────
      A tenant may carry a `trial` block. Everything below derives from it; if
      it's absent, trial() returns null and nothing trial-related renders.
@@ -319,7 +326,7 @@
       document.body.insertBefore(bar, document.body.firstChild);
     }
 
-    var support = cfg().supportEmail || '';
+    var support = upgradeEmail();
     var cta = support
       ? ' <a class="ot-cta" href="mailto:' + esc(support) + '?subject=' +
         encodeURIComponent('Upgrade ' + (nameOf(ws) || 'workspace') + ' from trial') +
@@ -367,6 +374,31 @@
     else { el.style.display = 'none'; }
   }
 
+  /* Topbar client chip.
+     Targets the CONTAINER (#tb-client-chip) rather than an inner <img>, because
+     only index.html ships that <img>; marketplace and projects have an empty
+     span they used to fill themselves. Owning the container here means one
+     implementation for all three — and a missing logo degrades to the client
+     name as text instead of an empty white box. */
+  function paintChip(ws) {
+    var box = byId('tb-client-chip');
+    if (!box) return;
+    var name = nameOf(ws), logo = logoOf(ws);
+
+    function asText() {
+      box.innerHTML = '<span class="tb-client-txt">' + esc(name) + '</span>';
+    }
+    if (!logo) { asText(); return; }
+
+    var img = document.createElement('img');
+    img.id = 'tb-client-logo';
+    img.alt = name;
+    img.onerror = asText;
+    box.innerHTML = '';
+    box.appendChild(img);
+    img.src = logo;
+  }
+
   /* Paint the app chrome. Safe on any page — absent elements are skipped. */
   function paint(ws) {
     if (!ws) return;
@@ -380,22 +412,7 @@
     setText('tb-ent-badge', tierOf(ws));
     paintTrial(ws);
 
-    /* Topbar client chip: logo if configured, else the name as text. */
-    var chip = byId('tb-client-logo');
-    if (chip) {
-      if (logo && chip.tagName === 'IMG') {
-        /* If the logo 404s, fall back to the name as text. Without this the
-           browser paints a broken-image icon next to the alt text. */
-        chip.onerror = function () {
-          if (chip.parentNode) {
-            chip.parentNode.innerHTML = '<span class="tb-client-txt">' + esc(name) + '</span>';
-          }
-        };
-        chip.src = logo; chip.alt = name; chip.style.display = '';
-      } else if (chip.parentNode) {
-        chip.parentNode.innerHTML = '<span class="tb-client-txt">' + esc(name) + '</span>';
-      }
-    }
+    paintChip(ws);
   }
 
   /* Paint the sign-in screen. Runs before auth, so it uses the DEPLOYMENT's
@@ -442,7 +459,7 @@
     if (t && t.expired && t.lockOnExpiry) {
       return 'The ' + (nameOf(lock) || 'workspace') + ' trial ended on '
            + fmtDate(t.lastDay) + '. Contact '
-           + (cfg().supportEmail || 'your administrator') + ' to continue.';
+           + upgradeEmail() + ' to continue.';
     }
 
     var dom = defaultDomain(registry);
@@ -480,6 +497,7 @@
     logoOf:        logoOf,
     tierOf:        tierOf,
     platformName:  platformName,
+    upgradeEmail:  upgradeEmail,
     trial:         trial,
     trialBlocks:   trialBlocks,
     paintTrial:    paintTrial,

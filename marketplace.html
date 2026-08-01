@@ -143,6 +143,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--cs-bg);color:var(--cs-tex
 .mkt-pill.added{color:#0E6E32;background:rgba(241,251,244,.92);border-color:#BCE7C9}
 .mkt-pill.invest{color:#0E6E32;background:rgba(241,251,244,.92);border-color:#BCE7C9}
 .mkt-pill.new{color:#006F9A;background:rgba(234,244,248,.92);border-color:#B9DBE8}
+.mkt-pill.lock{color:#8A5A00;background:rgba(255,248,235,.94);border-color:#EBCF9A}
+.mkt-card.locked .mkt-cover{filter:saturate(.35) brightness(.92)}
+.mkt-card.locked .mkt-name{color:#5F6B76}
 .mkt-pill.soon{color:#8A6D1F;background:rgba(251,246,230,.92);border-color:#E6D9AE}
 .mkt-empty{padding:60px 24px;text-align:center;color:var(--cs-sub);font-size:14px}
 .mkt-loading{padding:60px 24px;text-align:center;color:var(--cs-sub)}
@@ -516,8 +519,7 @@ function onAuth(user){
 }
 
 function applyChrome(ws, user){
-  var chip = el('tb-client-chip');
-  if (chip){ chip.innerHTML = ws.logo ? '<img src="'+esc(ws.logo)+'" alt="" onerror="this.style.display=\'none\'">' : '<span class="tb-client-txt">'+esc(ws.clientName||'')+'</span>'; }
+  /* chip is painted by OmegaBrand.paint() below — single owner */
   setText('tb-ent-badge', OmegaBrand.tierOf(ws));
   OmegaBrand.paint(ws);          // sidebar brand + trial banner
   OmegaBrand.paintTitle(ws, 'App Marketplace');
@@ -562,16 +564,34 @@ function loadPins(org, cb){
   } else { cb([]); }
 }
 
-/* ── Which tools this tenant may see (workspace unlock gate). ── */
-function qualifying(){
-  var all = OMEGATools.all(), out=[];
-  for (var i=0;i<all.length;i++){
-    var t = all[i];
-    if (OMEGATools && typeof OMEGATools.isUnlocked==='function'){ if (OMEGATools.isUnlocked(t, WORKSPACE)) out.push(t); }
-    else out.push(t);
+/* ── The catalog. Every tool is SHOWN; ones this tenant can't use are marked
+      locked and carry an Upgrade prompt. Filtering them out (the old behaviour)
+      made the marketplace look broken on a restricted tier and removed the
+      upsell entirely. ── */
+function qualifying(){ return OMEGATools.all(); }
+
+/* A tool is locked when the workspace gate says it isn't unlocked. Required
+   tools are always usable regardless of tier. */
+function isLocked(t){
+  if (!t || t.soon) return false;
+  if (isRequired(t)) return false;
+  if (OMEGATools && typeof OMEGATools.isUnlocked === 'function'){
+    return !OMEGATools.isUnlocked(t, WORKSPACE);
   }
-  return out;
+  return false;
 }
+
+/* Dev aid: print every catalog key so unlockedTools can be filled exactly.
+   Run  OMEGAKeys()  in the console. */
+window.OMEGAKeys = function(){
+  var all = OMEGATools.all(), rows = [];
+  for (var i=0;i<all.length;i++){
+    rows.push({ key: all[i].key, name: all[i].name,
+                category: all[i].category, locked: isLocked(all[i]) });
+  }
+  if (console.table) console.table(rows); else console.log(rows);
+  return rows;
+};
 function isPinned(k){ return _PINNED.indexOf(k)>=0; }
 function isRequired(t){
   if (WORKSPACE && WORKSPACE.requiredTools && WORKSPACE.requiredTools.indexOf(t.key)>=0) return true;
@@ -651,7 +671,7 @@ function coverGradient(cat){
   return g[cat] || 'linear-gradient(135deg,#08384F 0%,#006F9A 100%)';
 }
 function card(t){
-  var req=isRequired(t), pinned=isPinned(t.key);
+  var req=isRequired(t), pinned=isPinned(t.key), locked=isLocked(t);
   var open;
   if (t.soon) open='onclick="pmSoon(&quot;'+esc(t.name)+'&quot;)"';
   else if (t.action) open='href="/"';   // action tools live on the portal
@@ -659,6 +679,7 @@ function card(t){
 
   var pill='';
   if (t.soon) pill='<span class="mkt-pill soon">Soon</span>';
+  else if (locked) pill='<span class="mkt-pill lock">Upgrade</span>';
   else if (req) pill='<span class="mkt-pill inc">Included</span>';
   else if (pinned) pill='<span class="mkt-pill added">Added</span>';
   else if (t.badge==='invest') pill='<span class="mkt-pill invest">Investors</span>';
@@ -666,6 +687,14 @@ function card(t){
 
   var action;
   if (t.soon){ action='<div class="mkt-actions"><div class="mkt-act disabled">Coming soon</div></div>'; }
+  else if (locked){
+    var to = OmegaBrand.upgradeEmail();
+    var subj = encodeURIComponent('Unlock ' + (t.name||t.key) + ' \u2014 ' + ((WORKSPACE&&WORKSPACE.clientName)||''));
+    action = '<div class="mkt-actions">'
+           + (to ? '<a class="mkt-act primary" href="mailto:'+esc(to)+'?subject='+subj+'">Upgrade to unlock</a>'
+                 : '<div class="mkt-act disabled">Upgrade to unlock</div>')
+           + '</div>';
+  }
   else if (req || pinned){
     var openBtn='<a class="mkt-act primary" '+open+'>Open</a>';
     var rm = req ? '' : '<button class="mkt-act ghost" onclick="toggle(&quot;'+esc(t.key)+'&quot;)">Remove</button>';
@@ -677,9 +706,10 @@ function card(t){
   var stroke = t.soon ? 'rgba(255,255,255,.55)' : '#ffffff';
   var cover = t.soon ? 'linear-gradient(135deg,#5A7180 0%,#8A93A0 100%)' : coverGradient(t.category);
   var ver = t.version || '1.0.0';
-  var status = req ? 'Included' : (pinned ? 'On dashboard' : 'Available');
+  var status = locked ? 'Not in your plan'
+             : (req ? 'Included' : (pinned ? 'On dashboard' : 'Available'));
 
-  return '<div class="mkt-card">'
+  return '<div class="mkt-card' + (locked ? ' locked' : '') + '">'
     + '<div class="mkt-cover" style="background:'+cover+'">'
     +   (pill?'<span class="mkt-cover-badge">'+pill+'</span>':'')
     +   '<svg viewBox="0 0 24 24" fill="none" stroke="'+stroke+'" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="'+t.icon+'"/></svg>'

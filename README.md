@@ -54,7 +54,8 @@ rebuild. To convert to a paid account, drop the `trial` block entirely and set
 | `projects.html` | **shared** | Project list |
 | `omega-brand.js` | **shared** | Tenant resolution + branding |
 | `config.js` | **tenant-specific** | The only file to edit |
-| `images/qgen-logo.png` | tenant asset | |
+| `qgen-logo.png` | tenant asset | repo is flat, matching `salesdemo` |
+| `omega-logo.png` | platform asset | ClearSky-OMEGA mark |
 
 The four shared files are byte-identical across every ClearSky-OMEGA tenant.
 Fixes belong upstream and get copied down — never patch them here, or this repo
@@ -93,12 +94,41 @@ silently forks.
 
 ## Tools during the trial
 
-`tierLevel: 1` keeps the tier gate active, so only `unlockedTools` stay live and
-everything else renders with an Upgrade overlay. Currently unlocked: **editor**,
-**sales**. Catalog keys available: `editor`, `investment`, `sales`.
+The **entire catalog is visible**. Anything this account can't use renders with
+an "Upgrade" badge and a mailto to `dev@clearsky-usa.com`.
 
-Add bespoke iQGen-only tools via `customTools` on the tenant — see
-`omega-brand.js` for the shape.
+Unlocked for iQGen:
+
+| Key | Tool | Status |
+|---|---|---|
+| `editor` | BESS Site Map | confirmed · also pinned via `requiredTools` |
+| `financing` | Financing Partners | confirmed |
+| `grid_atlas` | Grid Atlas | **key unverified** |
+
+### How the gate actually works
+
+From `omega-tools.js`:
+
+```
+unlocked = requiredTools.has(key)
+        || unlockedTools.has(key)
+        || tierLevel >= (tool.tier ?? 1)
+```
+
+Tool tiers are `ALL=0`, `STANDARD=1`, `DELUXE=2`, `ENTERPRISE=3`. That third
+clause matters: at `tierLevel: 1` ten of sixteen tools unlock on tier alone.
+`tierLevel: -1` sits below `TIER.ALL`, so nothing passes on tier and access
+comes only from the two explicit lists.
+
+Set `tierLevel: 3` on conversion to open everything.
+
+### Grid Atlas
+
+Not in the `omega-tools.js` seed catalog. `hydrate()` replaces the seed with the
+Firestore `tools` collection when it's non-empty, and that collection has moved
+ahead — the live marketplace shows "Interconnection & Grid" and "Operations &
+Asset Management" categories the seed doesn't define. Run `OMEGAKeys()` in the
+browser console to get the real key and replace the placeholder in `config.js`.
 
 ---
 
