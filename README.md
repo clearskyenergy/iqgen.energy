@@ -1,0 +1,110 @@
+# iQGen Technologies — ClearSky-OMEGA Portal
+
+Client deployment of the ClearSky-OMEGA EnergyOS portal for **iQGen Technologies**
+([iqgen.energy](https://iqgen.energy)).
+
+---
+
+## Trial account
+
+| | |
+|---|---|
+| Account tier | **Trial** (`tierLevel: 1`) |
+| Starts | **Mon Aug 3, 2026** |
+| Length | **30 days** |
+| Last full day | **Tue Sep 1, 2026** |
+| Expires | **Wed Sep 2, 2026, 00:00** local |
+| On expiry | Banner only — access continues (`lockOnExpiry: false`) |
+
+A countdown banner renders at the top of every page and moves through four states:
+
+- **Before Aug 3** — blue, "Trial starts Aug 3, 2026"
+- **Aug 3 – Aug 25** — amber, "N days left in your 30-day trial"
+- **Final 7 days** — red, same copy with more urgency
+- **From Sep 2** — grey, "Trial ended Sep 1, 2026"
+
+### Cutting access off at expiry
+
+`lockOnExpiry: false` is deliberate: the trial lapsing shows a banner but does
+**not** lock anyone out. To make expiry hard, set it to `true` in `config.js`:
+
+```js
+trial: { startsAt: '2026-08-03', days: 30, lockOnExpiry: true }
+```
+
+From Sep 2 every `@iqgen.energy` sign-in is then refused with a message pointing
+at `support@iqgen.energy`. Domains in `adminDomains` keep access regardless, so
+ClearSky staff can still get in.
+
+### Extending the trial
+
+Change `days`, or move `startsAt`. Both take effect on next page load — no
+rebuild. To convert to a paid account, drop the `trial` block entirely and set
+`accountTier: 'Enterprise'` with `tierLevel: 3`.
+
+---
+
+## What's in here
+
+| File | Shared? | Notes |
+|---|---|---|
+| `index.html` | **shared** | Portal dashboard |
+| `marketplace.html` | **shared** | App marketplace |
+| `projects.html` | **shared** | Project list |
+| `omega-brand.js` | **shared** | Tenant resolution + branding |
+| `config.js` | **tenant-specific** | The only file to edit |
+| `images/qgen-logo.png` | tenant asset | |
+
+The four shared files are byte-identical across every ClearSky-OMEGA tenant.
+Fixes belong upstream and get copied down — never patch them here, or this repo
+silently forks.
+
+---
+
+## Before this goes live
+
+1. **Fill in the Firebase block in `config.js`.** It's `REPLACE_ME` right now, so
+   nobody can sign in. Reuse the `clearsky-portal` project if iQGen is a tenant
+   inside it; create a separate project if their data must be isolated at the
+   Firebase level.
+2. **Authorize the domain** in Firebase Console → Authentication → Settings →
+   Authorized domains. Google sign-in fails without this.
+3. **Confirm Firestore rules scope by `orgId`.** Everything here is scoped to
+   `orgId: 'iqgen.energy'`, but the client-side scope is a convenience — the
+   rules are the actual boundary.
+4. **Seed or import their projects** with `orgId: 'iqgen.energy'`, otherwise the
+   portal authenticates fine and shows an empty portfolio.
+
+---
+
+## Access rules
+
+- Only `@iqgen.energy` accounts may sign in.
+- `csebuilders.com` and `clearsky-usa.com` may preview (and survive expiry).
+- To admit an individual outside address — a consultant's Gmail, say — add it to
+  the tenant rather than opening a whole domain:
+
+  ```js
+  allowedEmails: ['someone@gmail.com']
+  ```
+
+---
+
+## Tools during the trial
+
+`tierLevel: 1` keeps the tier gate active, so only `unlockedTools` stay live and
+everything else renders with an Upgrade overlay. Currently unlocked: **editor**,
+**sales**. Catalog keys available: `editor`, `investment`, `sales`.
+
+Add bespoke iQGen-only tools via `customTools` on the tenant — see
+`omega-brand.js` for the shape.
+
+---
+
+## Note on the logo
+
+`images/qgen-logo.png` is the file you supplied, matching the path their own
+site uses. It reads "QGEN" while the company writes itself **iQGen** — the
+portal shows `clientName` ("iQGen Technologies") as text beside it, so the
+distinction is preserved either way. If they have a wordmark with the leading
+*i*, swap the file and keep the filename.
