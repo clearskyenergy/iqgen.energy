@@ -18,8 +18,9 @@ Client deployment of the ClearSky-OMEGA EnergyOS portal for **iQGen Technologies
 
 A countdown banner renders at the top of every page and moves through four states:
 
-- **Before Aug 3** — blue, "Trial starts Aug 3, 2026"
-- **Aug 3 – Aug 25** — amber, "N days left in your 30-day trial"
+- **Before Aug 3** — blue, "30 days left in your 30-day trial · starts Aug 3, 2026"
+  (the full allotment: no days are consumed before the start date)
+- **Aug 3 – Aug 25** — amber, "N days left in your 30-day trial · ends Sep 1, 2026"
 - **Final 7 days** — red, same copy with more urgency
 - **From Sep 2** — grey, "Trial ended Sep 1, 2026"
 

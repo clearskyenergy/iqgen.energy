@@ -1448,7 +1448,9 @@ window._omegaReady = function(){
   <div id="topbar">
     <a href="/" class="tb-logo">
       <!-- Platform identity stays ClearSky-OMEGA (like Salesforce shows Salesforce) -->
-      <img src="/clearsky-omega-mark-white.png" alt="OMEGA" class="tb-omega">
+      <!-- Platform mark. Hide on 404 rather than showing a broken-image icon;
+           the adjacent tb-logo-txt already carries the wordmark. -->
+      <img src="/clearsky-omega-mark-white.png" alt="OMEGA" class="tb-omega" onerror="this.style.display='none'">
       <span class="tb-logo-txt" id="tb-logo-txt"></span>
     </a>
     <div class="tb-sep"></div>

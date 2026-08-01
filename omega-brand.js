@@ -259,7 +259,10 @@
       notStarted:     notStarted,
       expired:        expired,
       active:         !notStarted && !expired,
-      daysLeft:       Math.max(0, Math.ceil((end - now) / MS_DAY)),
+      /* Before the start date no days have been consumed, so the figure to
+         show is the full allotment — not the calendar distance to the end. */
+      daysLeft:       notStarted ? days
+                                 : Math.max(0, Math.ceil((end - now) / MS_DAY)),
       daysUntilStart: Math.max(0, Math.ceil((start - now) / MS_DAY)),
       daysElapsed:    Math.max(0, Math.min(days, Math.floor((now - start) / MS_DAY))),
       lockOnExpiry:   t.lockOnExpiry === true
@@ -327,9 +330,9 @@
     if (t.notStarted) {
       cls = 'ot-pending';
       pct = 0;
-      msg = '<strong>Trial starts ' + fmtDate(t.startsAt) + '</strong> · ' +
-            t.totalDays + '-day trial, begins in ' + t.daysUntilStart +
-            ' day' + (t.daysUntilStart === 1 ? '' : 's');
+      msg = '<strong>' + t.daysLeft + ' day' + (t.daysLeft === 1 ? '' : 's') +
+            ' left</strong> in your ' + t.totalDays + '-day trial · starts ' +
+            fmtDate(t.startsAt) + cta;
     } else if (t.expired) {
       cls = 'ot-dead';
       pct = 100;
@@ -381,6 +384,13 @@
     var chip = byId('tb-client-logo');
     if (chip) {
       if (logo && chip.tagName === 'IMG') {
+        /* If the logo 404s, fall back to the name as text. Without this the
+           browser paints a broken-image icon next to the alt text. */
+        chip.onerror = function () {
+          if (chip.parentNode) {
+            chip.parentNode.innerHTML = '<span class="tb-client-txt">' + esc(name) + '</span>';
+          }
+        };
         chip.src = logo; chip.alt = name; chip.style.display = '';
       } else if (chip.parentNode) {
         chip.parentNode.innerHTML = '<span class="tb-client-txt">' + esc(name) + '</span>';
