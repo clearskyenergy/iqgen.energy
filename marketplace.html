@@ -146,6 +146,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--cs-bg);color:var(--cs-tex
 .mkt-pill.lock{color:#8A5A00;background:rgba(255,248,235,.94);border-color:#EBCF9A}
 .mkt-card.locked .mkt-cover{filter:saturate(.35) brightness(.92)}
 .mkt-card.locked .mkt-name{color:#5F6B76}
+/* A locked card's only control is "Upgrade to unlock", and it sits on the
+   card's bottom edge. With the hover lift the card slid up out from under the
+   pointer, hover dropped, the card fell back, hover returned — the button
+   pulsed for as long as the cursor rested on it. Locked cards do not lift. */
+.mkt-card.locked:hover{transform:none}
+.mkt-card.locked .mkt-act.primary{transition:background .12s}
 .mkt-pill.soon{color:#8A6D1F;background:rgba(251,246,230,.92);border-color:#E6D9AE}
 .mkt-empty{padding:60px 24px;text-align:center;color:var(--cs-sub);font-size:14px}
 .mkt-loading{padding:60px 24px;text-align:center;color:var(--cs-sub)}

@@ -480,18 +480,45 @@ body{font-family:'DM Sans',sans-serif;background:var(--cs-bg);color:var(--cs-tex
   .ov-val{font-size:30px}
 }
 
-/* ── UPGRADE OVERLAY (locked tools) ── */
-.pm-tile.locked{ position:relative; cursor:pointer; }
-.pm-tile.locked > *:not(.pm-lock){ filter:grayscale(.85) opacity(.45); pointer-events:none; }
+/* ── UPGRADE OVERLAY (locked tools) ──────────────────────────────────────────
+   Keyed off .omega-locked, which lockTile() adds to WHATEVER element it locks.
+   These rules used to be written as `.pm-tile.locked`, which quietly excluded
+   the Quick Access links: they carry data-tool and so get locked, but they are
+   .quick-link, not .pm-tile. Nothing here matched them, with two consequences —
+
+     1. .quick-link has no `position`, so the injected `.pm-lock` (position:
+        absolute; inset:0) resolved against the initial containing block and
+        stretched across the whole viewport instead of sitting on its own tile.
+        Two locked quick links meant two page-sized invisible sheets over the
+        dashboard, each a child of its own <a>, so whichever sheet was on top
+        held its link in a permanent :hover and stole every click underneath.
+     2. `.pm-tile.locked:hover .pm-lock` could never fire on them, so the
+        overlay had no stable state to settle into.
+
+   Both are fixed below by matching on .omega-locked and forcing a containing
+   block. The transform is also dropped while locked: the hover lift moved the
+   tile out from under the cursor, hover dropped, the overlay faded, the tile
+   fell back, hover returned — which is the flashing itself. */
+.omega-locked{ position:relative; cursor:pointer; }
+/* Dim the tile's own content, but never the badge or the overlay. */
+.omega-locked > *:not(.pm-lock):not(.pm-lock-badge){
+  filter:grayscale(.85) opacity(.45); pointer-events:none;
+}
+.omega-locked:hover, .omega-locked:active, .omega-locked:focus-within{ transform:none !important; }
 .pm-lock{
   position:absolute; inset:0; display:flex; flex-direction:column;
   align-items:center; justify-content:center; gap:6px;
   background:linear-gradient(135deg, rgba(8,56,79,.90), rgba(0,111,154,.88));
   border-radius:inherit; opacity:0; transition:opacity .16s; z-index:3;
+  /* The overlay must never be the hover target itself — if it were, the
+     pointer would sit on the overlay rather than the tile and the tile's
+     :hover would drop the moment the overlay faded in. Only the CTA takes
+     pointer events back. */
+  pointer-events:none;
 }
-.pm-tile.locked:hover .pm-lock{ opacity:1; }
+.omega-locked:hover .pm-lock, .omega-locked:focus-within .pm-lock{ opacity:1; }
 .pm-lock-badge{
-  position:absolute; top:8px; right:8px; z-index:4;
+  position:absolute; top:8px; right:8px; z-index:4; pointer-events:none;
   background:var(--cs-accent); color:#04303a; font-size:9px; font-weight:800;
   letter-spacing:.5px; text-transform:uppercase; padding:3px 8px; border-radius:10px;
   box-shadow:0 2px 6px rgba(0,169,164,.4);
@@ -502,7 +529,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--cs-bg);color:var(--cs-tex
 .pm-lock-cta{
   margin-top:4px; background:var(--cs-accent); color:#04303a; font-weight:700;
   font-size:10.5px; padding:5px 14px; border-radius:8px; border:none; cursor:pointer;
+  pointer-events:auto;
 }
+/* A locked Quick Access link is a short flex column; give the overlay room so
+   the copy does not collide with the link's own icon/title. */
+.quick-link.omega-locked .pm-lock-sub{ display:none; }
 
 /* ══════════════════ TEAM HUB ══════════════════ */
 .team-grid{display:grid;grid-template-columns:2fr 2fr 1fr;gap:18px;align-items:start}
@@ -4131,12 +4162,15 @@ document.getElementById('new-proj-modal').addEventListener('click', function(e) 
   if (cm) cm.addEventListener('click', function(e){ if (e.target === this) closeClaimModal(); });
 })();
 
-// ══════════ BOOT (UNCHANGED) ══════════
-if (document.readyState === 'loading') {
-
 /* ══════════════════════════════════════════════════════════════════════
    TOOL ACCESS GATING — locks tiles not in workspace.unlockedTools and shows
    an "Upgrade" overlay. (Demo tenant is Enterprise — all tools stay live.)
+
+   These declarations used to sit INSIDE the boot `if (readyState ===
+   'loading')` block below, so they only existed at all because inline scripts
+   run while the document is still parsing. Anything that changed that — a
+   deferred or injected copy of this script — left applyToolLocks undefined
+   and threw inside the auth callback. They belong at top level.
    ══════════════════════════════════════════════════════════════════════ */
 function applyToolLocks(){
   var ws = window.OMEGA_WORKSPACE;
@@ -4168,9 +4202,31 @@ function applyToolLocks(){
   }
 }
 
+/* Read the display name off whatever kind of element was locked: catalog
+   tiles label themselves .pm-name, Quick Access links use .ql-title. */
+function _lockLabel(tile){
+  if(!tile) return '';
+  var n = tile.querySelector('.pm-name') || tile.querySelector('.ql-title');
+  return n ? (n.textContent||'').trim() : '';
+}
+
 function lockTile(tile, key){
-  if(tile.classList.contains('locked')) return;
-  tile.classList.add('locked');
+  /* Idempotent on the class AND on the overlay node. A stray class with no
+     overlay (or the reverse) used to leave the tile half-locked. */
+  if(tile.classList.contains('omega-locked') || tile.querySelector('.pm-lock')) return;
+  tile.classList.add('locked');        // kept for any existing selectors/tests
+  tile.classList.add('omega-locked');  // what the overlay CSS actually keys off
+
+  /* The overlay is position:absolute; inset:0 and MUST resolve against this
+     element. .pm-tile sets position:relative in the stylesheet; .quick-link
+     does not, and an unpositioned host let the overlay escape to the initial
+     containing block and blanket the page. Guarantee it here rather than
+     relying on the host's own CSS. */
+  try {
+    var pos = window.getComputedStyle ? window.getComputedStyle(tile).position : '';
+    if(!pos || pos === 'static') tile.style.position = 'relative';
+  } catch(e){ tile.style.position = 'relative'; }
+
   // neutralize existing navigation
   tile.removeAttribute('href');
   tile.setAttribute('data-locked-onclick', tile.getAttribute('onclick')||'');
@@ -4183,8 +4239,7 @@ function lockTile(tile, key){
   badge.textContent = 'Upgrade';
   tile.appendChild(badge);
 
-  var name = tile.querySelector('.pm-name');
-  var label = name ? name.textContent : 'This module';
+  var label = _lockLabel(tile) || 'This module';
 
   var lock = document.createElement('div');
   lock.className = 'pm-lock';
@@ -4192,14 +4247,14 @@ function lockTile(tile, key){
     '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+
     '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'+
     '<div class="pm-lock-txt">Upgrade to unlock</div>'+
-    '<div class="pm-lock-sub">'+label+' is available on a higher plan.</div>'+
+    '<div class="pm-lock-sub">'+esc2(label)+' is available on a higher plan.</div>'+
     '<button class="pm-lock-cta" onclick="event.stopPropagation();openUpgrade(this)">Request access</button>';
   tile.appendChild(lock);
 }
 
 function openUpgrade(el){
   var tile = el.closest ? el.closest('[data-tool]') : null;
-  var name = tile ? (tile.querySelector('.pm-name')||{}).textContent : 'this module';
+  var name = _lockLabel(tile) || 'this module';
   showUpgradeModal(name);
 }
 
@@ -4225,6 +4280,8 @@ function showUpgradeModal(toolName){
 
 function esc2(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+// ══════════ BOOT ══════════
+if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', _initFirebase);
 } else {
   _initFirebase();
